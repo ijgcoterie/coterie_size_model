@@ -1,9 +1,14 @@
 import pandas as pd
 from utils.data_utils import load_data_from_gcs, load_model_from_gcs
 
-def predict_for_customer(customer_id):
+def load_resources():
+    # Load the customer timeline and models at startup and cache them
     customer_timeline = load_data_from_gcs('cot-dev-sizeup-model-storage', 'processed/customer_timeline.csv')
+    model = load_model_from_gcs('cot-dev-sizeup-model-storage', 'models/size_up_model.pkl')
+    label_encoder = load_model_from_gcs('cot-dev-sizeup-model-storage', 'models/next_size_product_encoder.pkl')
+    return customer_timeline, model, label_encoder
 
+def predict_for_customer(customer_id, customer_timeline, model, label_encoder):
     # Get the customer's most recent entry
     customer_data = customer_timeline[customer_timeline['SHOPIFY_CUSTOMER_ID'] == customer_id].iloc[-1]
 
@@ -18,14 +23,10 @@ def predict_for_customer(customer_id):
     # Convert the current features to a DataFrame
     current_features_df = pd.DataFrame([current_features])
 
-    model = load_model_from_gcs('cot-dev-sizeup-model-storage', 'models/size_up_model.pkl')
     predictions = model.predict(current_features_df)
 
     size_change_prediction = predictions[0][0]
     next_size_product_encoded = predictions[0][1]
-
-    # Load the saved LabelEncoder for next_size_product
-    label_encoder = load_model_from_gcs('cot-dev-sizeup-model-storage', 'models/next_size_product_encoder.pkl')
 
     # Decode the predicted next size and product
     next_size_product_prediction = label_encoder.inverse_transform([next_size_product_encoded])[0]
@@ -39,8 +40,9 @@ def predict_for_customer(customer_id):
     return prediction_result
 
 if __name__ == "__main__":
-    customer_id = 6739597033666 #6739597033666  # Replace with the desired customer ID
-    prediction = predict_for_customer(customer_id)
+    customer_id = 6739597033666  # Replace with the desired customer ID
+    customer_timeline, model, label_encoder = load_resources()
+    prediction = predict_for_customer(customer_id, customer_timeline, model, label_encoder)
     if prediction:
         print(prediction)
     else:
