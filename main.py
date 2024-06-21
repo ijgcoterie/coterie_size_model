@@ -4,7 +4,7 @@ from size_up_model.modeling.predict import predict_for_customer
 
 app = Flask(__name__)
 
-app.route("/", methods=["GET"])
+@app.route("/", methods=["GET"])
 def index():
     """Basic HTML response."""
     body = (
